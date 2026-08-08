@@ -406,8 +406,8 @@ namespace OLED_Sleeper.Features.MonitorIdleDetection.Services
 			if (IsWindowCloaked(hwnd))
 				return true;
 
-			// --- NEW FIX 1: Ignore ToolWindows & Non-Activating Overlays (e.g. Nvidia Overlay) ---
-			int exStyle = NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
+			// Filter out Tool Windows & Non-Activating Overlays (e.g. Nvidia Overlay) using GetWindowLongPtr
+			long exStyle = (long)NativeMethods.GetWindowLongPtr(hwnd, NativeMethods.GWL_EXSTYLE);
 			if ((exStyle & NativeMethods.WS_EX_TOOLWINDOW) != 0 || (exStyle & NativeMethods.WS_EX_NOACTIVATE) != 0)
 				return true;
 
@@ -415,7 +415,7 @@ namespace OLED_Sleeper.Features.MonitorIdleDetection.Services
 			if (IsShellDesktopWindowClass(className))
 				return true;
 
-			// --- NEW FIX 2: Ignore Taskbars & Nvidia / Shell Class Names ---
+			// Filter out Taskbars & Nvidia overlay classes
 			if (className == "Shell_TrayWnd" || className == "Shell_SecondaryTrayWnd" || className.StartsWith("NVIDIA", StringComparison.OrdinalIgnoreCase))
 				return true;
 
@@ -437,8 +437,6 @@ namespace OLED_Sleeper.Features.MonitorIdleDetection.Services
 				if (!(anchoredOnMonitor || rectsOverlap))
 					continue;
 
-				// Require meaningful coverage on this monitor so shadows, DWM helpers, or huge rects
-				// that only clip a sliver of the display do not block blackout.
 				if (!HasSignificantVisibleOverlap(m.Bounds, windowBounds))
 					continue;
 
