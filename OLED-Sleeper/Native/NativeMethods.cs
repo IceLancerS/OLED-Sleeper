@@ -250,24 +250,10 @@ namespace OLED_Sleeper.Native
 		/// <summary>
         /// Retrieves the dimensions of the bounding rectangle of the specified window.
         /// </summary>
-        [DllImport("user32.dll")]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool GetWindowRect(IntPtr hWnd, out RECT lpRect);
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct RECT
-        {
-            public int Left;
-            public int Top;
-            public int Right;
-            public int Bottom;
-        }
 
         /// <summary>
         /// Retrieves information about the specified window, such as extended window styles.
         /// </summary>
-        [DllImport("user32.dll", EntryPoint = "GetWindowLong")]
-        public static extern int GetWindowLong(IntPtr hWnd, int nIndex);
 
         /// <summary>
         /// Retrieves the identifier of the thread/process that created the specified window.
