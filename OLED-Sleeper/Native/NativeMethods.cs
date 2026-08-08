@@ -14,12 +14,12 @@ namespace OLED_Sleeper.Native
         /// <summary>
         /// Specifies the index for retrieving or setting a window's extended styles.
         /// </summary>
-        public const int GWL_EXSTYLE = -20;
+//        public const int GWL_EXSTYLE = -20;
 
         /// <summary>
         /// Specifies that a window should not be activated when shown.
         /// </summary>
-        public const int WS_EX_NOACTIVATE = 0x08000000;
+//        public const int WS_EX_NOACTIVATE = 0x08000000;
 
         /// <summary>
         /// Contains information about the last user input event.
