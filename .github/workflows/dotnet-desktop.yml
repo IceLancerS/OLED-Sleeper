@@ -131,3 +131,17 @@ jobs:
       with:
         name: OLED-Sleeper-win-x64
         path: ./publish/
+# Zips the build output
+    - name: Compress Executable
+      shell: powershell
+      run: |
+        Compress-Archive -Path ./publish/* -DestinationPath ./OLED-Sleeper-win-x64.zip
+
+    # Creates/updates the Release and attaches the zip file
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v3
+      with:
+        files: ./OLED-Sleeper-win-x64.zip
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
