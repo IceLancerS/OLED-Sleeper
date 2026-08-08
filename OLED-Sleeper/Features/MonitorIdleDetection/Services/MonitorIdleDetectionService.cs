@@ -1,4 +1,4 @@
-﻿using OLED_Sleeper.Core.Interfaces;
+using OLED_Sleeper.Core.Interfaces;
 using OLED_Sleeper.Features.MonitorBehavior.Commands;
 using OLED_Sleeper.Features.MonitorBlackout.Services.Interfaces;
 using OLED_Sleeper.Features.MonitorIdleDetection.Models;
@@ -376,71 +376,80 @@ namespace OLED_Sleeper.Features.MonitorIdleDetection.Services
         /// <summary>
         /// Enumerates top-level windows and maps monitors (with the option enabled) that intersect a visible, non-shell window.
         /// </summary>
-        private HashSet<string> ComputeHardwareIdsWithVisibleAppWindows(IReadOnlyList<ManagedMonitorState> monitors)
-        {
-            var result = new HashSet<string>(StringComparer.Ordinal);
-            var targets = monitors.Where(m => m.Settings.IsActiveOnVisibleWindows).ToList();
-            if (targets.Count == 0)
-                return result;
+	private HashSet<string> ComputeHardwareIdsWithVisibleAppWindows(IReadOnlyList<ManagedMonitorState> monitors)
+	{
+		var result = new HashSet<string>(StringComparer.Ordinal);
+		var targets = monitors.Where(m => m.Settings.IsActiveOnVisibleWindows).ToList();
+		if (targets.Count == 0)
+			return result;
 
-            var distinctHardwareIds = targets.Select(m => m.Settings.HardwareId).Distinct(StringComparer.Ordinal).ToList();
-            var monitorHandleByHardwareId = new Dictionary<string, nint>(StringComparer.Ordinal);
-            foreach (var id in distinctHardwareIds)
-            {
-                var sample = targets.First(m => m.Settings.HardwareId == id);
-                monitorHandleByHardwareId[id] = GetMonitorHandleFromBounds(sample.Bounds);
-            }
+		var distinctHardwareIds = targets.Select(m => m.Settings.HardwareId).Distinct(StringComparer.Ordinal).ToList();
+		var monitorHandleByHardwareId = new Dictionary<string, nint>(StringComparer.Ordinal);
+		foreach (var id in distinctHardwareIds)
+		{
+			var sample = targets.First(m => m.Settings.HardwareId == id);
+			monitorHandleByHardwareId[id] = GetMonitorHandleFromBounds(sample.Bounds);
+		}
 
-            nint shellWindow = NativeMethods.GetShellWindow();
+		nint shellWindow = NativeMethods.GetShellWindow();
 
-            NativeMethods.EnumWindows((hWnd, _) =>
-            {
-                if (result.Count >= distinctHardwareIds.Count)
-                    return false;
+		NativeMethods.EnumWindows((hWnd, _) =>
+		{
+			if (result.Count >= distinctHardwareIds.Count)
+				return false;
 
-                nint hwnd = hWnd;
-                if (!NativeMethods.IsWindow(hwnd) || !NativeMethods.IsWindowVisible(hwnd) || NativeMethods.IsIconic(hwnd))
-                    return true;
-                if (hwnd == shellWindow || _monitorBlackoutService.IsOverlayWindow(hwnd))
-                    return true;
-                if (IsWindowCloaked(hwnd))
-                    return true;
+			nint hwnd = hWnd;
+			if (!NativeMethods.IsWindow(hwnd) || !NativeMethods.IsWindowVisible(hwnd) || NativeMethods.IsIconic(hwnd))
+				return true;
+			if (hwnd == shellWindow || _monitorBlackoutService.IsOverlayWindow(hwnd))
+				return true;
+			if (IsWindowCloaked(hwnd))
+				return true;
 
-                var className = GetWindowClassName(hwnd);
-                if (IsShellDesktopWindowClass(className))
-                    return true;
+			// --- NEW FIX 1: Ignore ToolWindows & Non-Activating Overlays (e.g. Nvidia Overlay) ---
+			int exStyle = NativeMethods.GetWindowLong(hwnd, NativeMethods.GWL_EXSTYLE);
+			if ((exStyle & NativeMethods.WS_EX_TOOLWINDOW) != 0 || (exStyle & NativeMethods.WS_EX_NOACTIVATE) != 0)
+				return true;
 
-                Rect windowBounds = GetWindowScreenBoundsForVisibleScan(hwnd);
-                if (windowBounds.IsEmpty || windowBounds.Width <= 0 || windowBounds.Height <= 0)
-                    return true;
+			var className = GetWindowClassName(hwnd);
+			if (IsShellDesktopWindowClass(className))
+				return true;
 
-                nint windowMonitor = (nint)NativeMethods.MonitorFromWindow((IntPtr)hwnd, NativeMethods.MONITOR_DEFAULTTONULL);
+			// --- NEW FIX 2: Ignore Taskbars & Nvidia / Shell Class Names ---
+			if (className == "Shell_TrayWnd" || className == "Shell_SecondaryTrayWnd" || className.StartsWith("NVIDIA", StringComparison.OrdinalIgnoreCase))
+				return true;
 
-                foreach (var m in targets)
-                {
-                    if (result.Contains(m.Settings.HardwareId))
-                        continue;
-                    if (!monitorHandleByHardwareId.TryGetValue(m.Settings.HardwareId, out nint targetMonitor))
-                        continue;
+			Rect windowBounds = GetWindowScreenBoundsForVisibleScan(hwnd);
+			if (windowBounds.IsEmpty || windowBounds.Width <= 0 || windowBounds.Height <= 0)
+				return true;
 
-                    bool anchoredOnMonitor = windowMonitor != nint.Zero && windowMonitor == targetMonitor;
-                    bool rectsOverlap = MonitorIntersectsWindow(m.Bounds, windowBounds);
-                    if (!(anchoredOnMonitor || rectsOverlap))
-                        continue;
+			nint windowMonitor = (nint)NativeMethods.MonitorFromWindow((IntPtr)hwnd, NativeMethods.MONITOR_DEFAULTTONULL);
 
-                    // Require meaningful coverage on this monitor so shadows, DWM helpers, or huge rects
-                    // that only clip a sliver of the display do not block blackout.
-                    if (!HasSignificantVisibleOverlap(m.Bounds, windowBounds))
-                        continue;
+			foreach (var m in targets)
+			{
+				if (result.Contains(m.Settings.HardwareId))
+					continue;
+				if (!monitorHandleByHardwareId.TryGetValue(m.Settings.HardwareId, out nint targetMonitor))
+					continue;
 
-                    result.Add(m.Settings.HardwareId);
-                }
+				bool anchoredOnMonitor = windowMonitor != nint.Zero && windowMonitor == targetMonitor;
+				bool rectsOverlap = MonitorIntersectsWindow(m.Bounds, windowBounds);
+				if (!(anchoredOnMonitor || rectsOverlap))
+					continue;
 
-                return true;
-            }, IntPtr.Zero);
+				// Require meaningful coverage on this monitor so shadows, DWM helpers, or huge rects
+				// that only clip a sliver of the display do not block blackout.
+				if (!HasSignificantVisibleOverlap(m.Bounds, windowBounds))
+					continue;
 
-            return result;
-        }
+				result.Add(m.Settings.HardwareId);
+			}
+
+			return true;
+		}, IntPtr.Zero);
+
+		return result;
+	}
 
         private static nint GetMonitorHandleFromBounds(Rect bounds)
         {
