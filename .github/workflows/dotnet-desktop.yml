@@ -39,11 +39,10 @@
 name: .NET Core Desktop
 
 on:
-  push:
-    branches: [ "master" ]
-  pull_request:
-    branches: [ "master" ]
   workflow_dispatch: # Enables manual run button in browser UI
+  push:
+    tags:
+      - 'v*'       # ONLY runs when you push a tag like v1.0.0
   
 permissions:
   contents: write
