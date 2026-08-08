@@ -2,6 +2,9 @@
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+Primary difference:
+Minimizing all windows on a monitor will now allow it to sleep. Ideal for multi-monitor setups where you want one screen to stay awake while working, but sleep when minimized. (Make sure "A visible window on this monitor" is enabled!)
+
 OLED Sleeper is a lightweight Windows tool to blackout or dim idle monitors, helping users prevent OLED burn-in and temporarily sleep secondary monitors for focus, gaming, or distraction-free work.
 
 <p align="center">
